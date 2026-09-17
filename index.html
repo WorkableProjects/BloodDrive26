@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mat Occupancy Tracker</title>
+<style>
+  :root {
+    --bg: #f4f5f7;
+    --card: #ffffff;
+    --border: #e0e2e7;
+    --text: #1f2430;
+    --muted: #6b7280;
+    --accent: #b8272c;
+    --accent-dark: #8e1f23;
+    --ok: #1f9d55;
+    --warn: #f59e0b;
+    --danger: #dc2626;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+  }
+  header {
+    background: var(--accent);
+    color: white;
+    padding: 20px 24px;
+  }
+  header h1 { margin: 0; font-size: 1.4rem; }
+  header p { margin: 4px 0 0; opacity: 0.9; font-size: 0.9rem; }
+  main {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 24px;
+  }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 24px;
+  }
+  .card h2 { margin-top: 0; font-size: 1.1rem; }
+  form {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: flex-end;
+  }
+  .field { display: flex; flex-direction: column; gap: 4px; }
+  .field label { font-size: 0.8rem; color: var(--muted); }
+  .field input, .field select {
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 0.95rem;
+  }
+  button {
+    background: var(--accent);
+    color: white;
+    border: none;
+    padding: 9px 16px;
+    border-radius: 6px;
+    font-size: 0.95rem;
+    cursor: pointer;
+  }
+  button:hover { background: var(--accent-dark); }
+  button.secondary {
+    background: white;
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+  button.secondary:hover { background: #f0f0f0; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+  }
+  th, td {
+    text-align: left;
+    padding: 10px 8px;
+    border-bottom: 1px solid var(--border);
+  }
+  th { color: var(--muted); font-weight: 600; font-size: 0.8rem; text-transform: uppercase; }
+  tr.expired td { background: #fdecea; }
+  tr.soon td { background: #fff8e1; }
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+  .badge.active { background: #e6f7ec; color: var(--ok); }
+  .badge.soon { background: #fff3d6; color: #92660a; }
+  .badge.expired { background: #fde2e1; color: var(--danger); }
+  .row-actions { display: flex; gap: 6px; }
+  .row-actions button { padding: 5px 10px; font-size: 0.8rem; }
+  .empty { color: var(--muted); font-style: italic; padding: 12px 0; }
+
+  #toast-container {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    z-index: 1000;
+    max-width: 320px;
+  }
+  .toast {
+    background: var(--danger);
+    color: white;
+    padding: 14px 16px;
+    border-radius: 8px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.25);
+    animation: slidein 0.25s ease-out;
+  }
+  .toast .toast-title { font-weight: 700; margin-bottom: 4px; }
+  .toast .toast-actions { margin-top: 10px; display: flex; gap: 8px; }
+  .toast button {
+    background: rgba(255,255,255,0.15);
+    border: 1px solid rgba(255,255,255,0.4);
+    padding: 6px 10px;
+    font-size: 0.8rem;
+  }
+  .toast button:hover { background: rgba(255,255,255,0.3); }
+  @keyframes slidein {
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>Mat Occupancy Tracker</h1>
+  <p>Track who's on which mat, and get reminded when their time is up.</p>
+</header>
+<main>
+  <div class="card">
+    <h2>Check In</h2>
+    <form id="checkin-form">
+      <div class="field">
+        <label for="name">Name</label>
+        <input type="text" id="name" required placeholder="Full name">
+      </div>
+      <div class="field">
+        <label for="mat">Mat #</label>
+        <select id="mat" required></select>
+      </div>
+      <div class="field">
+        <label for="enter-time">Enter Time</label>
+        <input type="time" id="enter-time" required>
+      </div>
+      <div class="field">
+        <label for="duration">Duration (min)</label>
+        <input type="number" id="duration" value="15" min="1" style="width: 80px;">
+      </div>
+      <button type="submit">Check In</button>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2>Occupied Mats</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Mat #</th>
+          <th>Name</th>
+          <th>Enter Time</th>
+          <th>Leave Time</th>
+          <th>Status</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="table-body"></tbody>
+    </table>
+    <div id="empty-msg" class="empty" style="display:none;">No one is currently on a mat.</div>
+  </div>
+</main>
+
+<div id="toast-container"></div>
+
+<script>
+const STORAGE_KEY = "matTrackerEntries";
+const NUM_MATS = 10;
+const NOTIFIED_KEY = "matTrackerNotified";
+
+let entries = loadEntries();
+let notified = new Set(JSON.parse(localStorage.getItem(NOTIFIED_KEY) || "[]"));
+
+function loadEntries() {
+  try {
+    return JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+  } catch {
+    return [];
+  }
+}
+
+function saveEntries() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+}
+
+function saveNotified() {
+  localStorage.setItem(NOTIFIED_KEY, JSON.stringify([...notified]));
+}
+
+function uid() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+}
+
+function fmtTime(date) {
+  return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
+
+function parseTimeToday(hhmm) {
+  const [h, m] = hhmm.split(":").map(Number);
+  const d = new Date();
+  d.setHours(h, m, 0, 0);
+  return d;
+}
+
+const matSelect = document.getElementById("mat");
+for (let i = 1; i <= NUM_MATS; i++) {
+  const opt = document.createElement("option");
+  opt.value = i;
+  opt.textContent = "Mat " + i;
+  matSelect.appendChild(opt);
+}
+
+const now = new Date();
+document.getElementById("enter-time").value =
+  String(now.getHours()).padStart(2, "0") + ":" + String(now.getMinutes()).padStart(2, "0");
+
+document.getElementById("checkin-form").addEventListener("submit", (e) => {
+  e.preventDefault();
+  const name = document.getElementById("name").value.trim();
+  const mat = Number(document.getElementById("mat").value);
+  const enterTimeStr = document.getElementById("enter-time").value;
+  const duration = Number(document.getElementById("duration").value) || 15;
+
+  if (!name) return;
+
+  const occupied = entries.find((en) => en.mat === mat);
+  if (occupied) {
+    if (!confirm(`Mat ${mat} is currently occupied by ${occupied.name}. Replace them?`)) {
+      return;
+    }
+    entries = entries.filter((en) => en.id !== occupied.id);
+  }
+
+  const enterTime = parseTimeToday(enterTimeStr);
+  const leaveTime = new Date(enterTime.getTime() + duration * 60000);
+
+  entries.push({
+    id: uid(),
+    name,
+    mat,
+    enterTime: enterTime.toISOString(),
+    leaveTime: leaveTime.toISOString(),
+  });
+
+  saveEntries();
+  document.getElementById("name").value = "";
+  render();
+});
+
+function addMinutes(id, minutes) {
+  const entry = entries.find((en) => en.id === id);
+  if (!entry) return;
+  const leave = new Date(entry.leaveTime);
+  entry.leaveTime = new Date(leave.getTime() + minutes * 60000).toISOString();
+  notified.delete(id);
+  saveNotified();
+  saveEntries();
+  render();
+  dismissToast(id);
+}
+
+function checkOut(id) {
+  entries = entries.filter((en) => en.id !== id);
+  notified.delete(id);
+  saveNotified();
+  saveEntries();
+  render();
+  dismissToast(id);
+}
+
+function dismissToast(id) {
+  const el = document.getElementById("toast-" + id);
+  if (el) el.remove();
+}
+
+function showToast(entry) {
+  if (document.getElementById("toast-" + entry.id)) return;
+  const container = document.getElementById("toast-container");
+  const toast = document.createElement("div");
+  toast.className = "toast";
+  toast.id = "toast-" + entry.id;
+  toast.innerHTML = `
+    <div class="toast-title">Time's up: ${escapeHtml(entry.name)} (Mat ${entry.mat})</div>
+    <div>Leave time was ${fmtTime(new Date(entry.leaveTime))}.</div>
+    <div class="toast-actions">
+      <button onclick="addMinutes('${entry.id}', 5)">+5 min</button>
+      <button onclick="addMinutes('${entry.id}', 15)">+15 min</button>
+      <button onclick="checkOut('${entry.id}')">Check Out</button>
+    </div>
+  `;
+  container.appendChild(toast);
+}
+
+function escapeHtml(str) {
+  const div = document.createElement("div");
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+function render() {
+  const tbody = document.getElementById("table-body");
+  const emptyMsg = document.getElementById("empty-msg");
+  tbody.innerHTML = "";
+
+  const sorted = [...entries].sort((a, b) => a.mat - b.mat);
+
+  if (sorted.length === 0) {
+    emptyMsg.style.display = "block";
+  } else {
+    emptyMsg.style.display = "none";
+  }
+
+  const nowMs = Date.now();
+
+  sorted.forEach((entry) => {
+    const leaveMs = new Date(entry.leaveTime).getTime();
+    const diffMin = (leaveMs - nowMs) / 60000;
+
+    let statusClass = "active";
+    let statusLabel = "Active";
+    let rowClass = "";
+
+    if (diffMin <= 0) {
+      statusClass = "expired";
+      statusLabel = "Time's Up";
+      rowClass = "expired";
+    } else if (diffMin <= 2) {
+      statusClass = "soon";
+      statusLabel = "Ending Soon";
+      rowClass = "soon";
+    }
+
+    const tr = document.createElement("tr");
+    tr.className = rowClass;
+    tr.innerHTML = `
+      <td>${entry.mat}</td>
+      <td>${escapeHtml(entry.name)}</td>
+      <td>${fmtTime(new Date(entry.enterTime))}</td>
+      <td>${fmtTime(new Date(entry.leaveTime))}</td>
+      <td><span class="badge ${statusClass}">${statusLabel}</span></td>
+      <td>
+        <div class="row-actions">
+          <button class="secondary" onclick="addMinutes('${entry.id}', 15)">+15 min</button>
+          <button class="secondary" onclick="checkOut('${entry.id}')">Check Out</button>
+        </div>
+      </td>
+    `;
+    tbody.appendChild(tr);
+
+    if (diffMin <= 0) {
+      showToast(entry);
+    }
+  });
+}
+
+setInterval(render, 5000);
+render();
+</script>
+</body>
+</html>
