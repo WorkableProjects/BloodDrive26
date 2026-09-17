@@ -85,8 +85,17 @@
     border-bottom: 1px solid var(--border);
   }
   th { color: var(--muted); font-weight: 600; font-size: 0.8rem; text-transform: uppercase; }
-  tr.expired td { background: #fdecea; }
+  tr.expired td { background: #fdecea; animation: pulse-row 1.4s ease-in-out infinite; }
   tr.soon td { background: #fff8e1; }
+  tr.new-row { animation: fadein-row 0.4s ease-out; }
+  @keyframes pulse-row {
+    0%, 100% { background-color: #fdecea; }
+    50% { background-color: #f8c4c1; }
+  }
+  @keyframes fadein-row {
+    from { opacity: 0; transform: translateY(-6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
   .badge {
     display: inline-block;
     padding: 2px 8px;
@@ -132,6 +141,26 @@
     from { transform: translateX(100%); opacity: 0; }
     to { transform: translateX(0); opacity: 1; }
   }
+  .toast.shake { animation: slidein 0.25s ease-out, shake 0.5s ease-in-out 0.25s; }
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    20%, 60% { transform: translateX(-4px); }
+    40%, 80% { transform: translateX(4px); }
+  }
+  button.icon-btn {
+    background: transparent;
+    color: white;
+    border: 1px solid rgba(255,255,255,0.5);
+    padding: 4px 8px;
+    font-size: 0.75rem;
+  }
+  #sound-toggle {
+    position: fixed;
+    bottom: 20px;
+    left: 20px;
+    z-index: 1000;
+  }
+  .history-empty { color: var(--muted); font-style: italic; padding: 12px 0; }
 </style>
 </head>
 <body>
@@ -180,17 +209,45 @@
     </table>
     <div id="empty-msg" class="empty" style="display:none;">No one is currently on a mat.</div>
   </div>
+
+  <div class="card">
+    <h2 style="display:flex; align-items:center; justify-content:space-between;">
+      History
+      <button class="secondary" id="clear-history-btn" style="font-size:0.8rem;">Clear History</button>
+    </h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Mat #</th>
+          <th>Name</th>
+          <th>Enter Time</th>
+          <th>Leave Time</th>
+          <th>Checked Out</th>
+        </tr>
+      </thead>
+      <tbody id="history-body"></tbody>
+    </table>
+    <div id="history-empty" class="history-empty" style="display:none;">No history yet.</div>
+  </div>
 </main>
 
+<button id="sound-toggle" class="secondary" title="Toggle alarm sound">🔊 Sound On</button>
 <div id="toast-container"></div>
 
 <script>
 const STORAGE_KEY = "matTrackerEntries";
+const HISTORY_KEY = "matTrackerHistory";
+const SOUND_KEY = "matTrackerSoundOn";
 const NUM_MATS = 10;
 const NOTIFIED_KEY = "matTrackerNotified";
+const ALARM_REPEAT_MS = 15000;
 
 let entries = loadEntries();
+let history = loadHistory();
 let notified = new Set(JSON.parse(localStorage.getItem(NOTIFIED_KEY) || "[]"));
+let soundOn = localStorage.getItem(SOUND_KEY) !== "off";
+let newRowIds = new Set();
+const alarmTimers = {};
 
 function loadEntries() {
   try {
@@ -200,13 +257,68 @@ function loadEntries() {
   }
 }
 
+function loadHistory() {
+  try {
+    return JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]");
+  } catch {
+    return [];
+  }
+}
+
 function saveEntries() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+}
+
+function saveHistory() {
+  localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
 }
 
 function saveNotified() {
   localStorage.setItem(NOTIFIED_KEY, JSON.stringify([...notified]));
 }
+
+let audioCtx = null;
+function playAlarm() {
+  if (!soundOn) return;
+  try {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const now = audioCtx.currentTime;
+    [0, 0.18].forEach((offset) => {
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = "sine";
+      osc.frequency.value = 880;
+      gain.gain.setValueAtTime(0.0001, now + offset);
+      gain.gain.exponentialRampToValueAtTime(0.3, now + offset + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + offset + 0.15);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start(now + offset);
+      osc.stop(now + offset + 0.16);
+    });
+  } catch (err) {
+    console.warn("Alarm sound unavailable", err);
+  }
+}
+
+const soundToggleBtn = document.getElementById("sound-toggle");
+function updateSoundToggleLabel() {
+  soundToggleBtn.textContent = soundOn ? "🔊 Sound On" : "🔇 Sound Off";
+}
+soundToggleBtn.addEventListener("click", () => {
+  soundOn = !soundOn;
+  localStorage.setItem(SOUND_KEY, soundOn ? "on" : "off");
+  updateSoundToggleLabel();
+});
+updateSoundToggleLabel();
+
+document.getElementById("clear-history-btn").addEventListener("click", () => {
+  if (history.length === 0) return;
+  if (!confirm("Clear all history entries?")) return;
+  history = [];
+  saveHistory();
+  render();
+});
 
 function uid() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
@@ -249,24 +361,49 @@ document.getElementById("checkin-form").addEventListener("submit", (e) => {
     if (!confirm(`Mat ${mat} is currently occupied by ${occupied.name}. Replace them?`)) {
       return;
     }
+    logToHistory(occupied, "Replaced");
     entries = entries.filter((en) => en.id !== occupied.id);
+    clearAlarmTimer(occupied.id);
   }
 
   const enterTime = parseTimeToday(enterTimeStr);
   const leaveTime = new Date(enterTime.getTime() + duration * 60000);
+  const id = uid();
 
   entries.push({
-    id: uid(),
+    id,
     name,
     mat,
     enterTime: enterTime.toISOString(),
     leaveTime: leaveTime.toISOString(),
   });
 
+  newRowIds.add(id);
   saveEntries();
   document.getElementById("name").value = "";
   render();
 });
+
+function logToHistory(entry, reason) {
+  history.unshift({
+    id: uid(),
+    name: entry.name,
+    mat: entry.mat,
+    enterTime: entry.enterTime,
+    leaveTime: entry.leaveTime,
+    checkedOutAt: new Date().toISOString(),
+    reason,
+  });
+  if (history.length > 200) history.length = 200;
+  saveHistory();
+}
+
+function clearAlarmTimer(id) {
+  if (alarmTimers[id]) {
+    clearInterval(alarmTimers[id]);
+    delete alarmTimers[id];
+  }
+}
 
 function addMinutes(id, minutes) {
   const entry = entries.find((en) => en.id === id);
@@ -274,6 +411,7 @@ function addMinutes(id, minutes) {
   const leave = new Date(entry.leaveTime);
   entry.leaveTime = new Date(leave.getTime() + minutes * 60000).toISOString();
   notified.delete(id);
+  clearAlarmTimer(id);
   saveNotified();
   saveEntries();
   render();
@@ -281,8 +419,11 @@ function addMinutes(id, minutes) {
 }
 
 function checkOut(id) {
+  const entry = entries.find((en) => en.id === id);
+  if (entry) logToHistory(entry, "Checked Out");
   entries = entries.filter((en) => en.id !== id);
   notified.delete(id);
+  clearAlarmTimer(id);
   saveNotified();
   saveEntries();
   render();
@@ -295,21 +436,27 @@ function dismissToast(id) {
 }
 
 function showToast(entry) {
-  if (document.getElementById("toast-" + entry.id)) return;
-  const container = document.getElementById("toast-container");
-  const toast = document.createElement("div");
-  toast.className = "toast";
-  toast.id = "toast-" + entry.id;
-  toast.innerHTML = `
-    <div class="toast-title">Time's up: ${escapeHtml(entry.name)} (Mat ${entry.mat})</div>
-    <div>Leave time was ${fmtTime(new Date(entry.leaveTime))}.</div>
-    <div class="toast-actions">
-      <button onclick="addMinutes('${entry.id}', 5)">+5 min</button>
-      <button onclick="addMinutes('${entry.id}', 15)">+15 min</button>
-      <button onclick="checkOut('${entry.id}')">Check Out</button>
-    </div>
-  `;
-  container.appendChild(toast);
+  if (!document.getElementById("toast-" + entry.id)) {
+    const container = document.getElementById("toast-container");
+    const toast = document.createElement("div");
+    toast.className = "toast shake";
+    toast.id = "toast-" + entry.id;
+    toast.innerHTML = `
+      <div class="toast-title">Time's up: ${escapeHtml(entry.name)} (Mat ${entry.mat})</div>
+      <div>Leave time was ${fmtTime(new Date(entry.leaveTime))}.</div>
+      <div class="toast-actions">
+        <button onclick="addMinutes('${entry.id}', 5)">+5 min</button>
+        <button onclick="addMinutes('${entry.id}', 15)">+15 min</button>
+        <button onclick="checkOut('${entry.id}')">Check Out</button>
+      </div>
+    `;
+    container.appendChild(toast);
+  }
+
+  if (!alarmTimers[entry.id]) {
+    playAlarm();
+    alarmTimers[entry.id] = setInterval(playAlarm, ALARM_REPEAT_MS);
+  }
 }
 
 function escapeHtml(str) {
@@ -352,7 +499,7 @@ function render() {
     }
 
     const tr = document.createElement("tr");
-    tr.className = rowClass;
+    tr.className = [rowClass, newRowIds.has(entry.id) ? "new-row" : ""].filter(Boolean).join(" ");
     tr.innerHTML = `
       <td>${entry.mat}</td>
       <td>${escapeHtml(entry.name)}</td>
@@ -371,6 +518,33 @@ function render() {
     if (diffMin <= 0) {
       showToast(entry);
     }
+  });
+
+  newRowIds.clear();
+  renderHistory();
+}
+
+function renderHistory() {
+  const tbody = document.getElementById("history-body");
+  const emptyMsg = document.getElementById("history-empty");
+  tbody.innerHTML = "";
+
+  if (history.length === 0) {
+    emptyMsg.style.display = "block";
+    return;
+  }
+  emptyMsg.style.display = "none";
+
+  history.forEach((h) => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${h.mat}</td>
+      <td>${escapeHtml(h.name)}</td>
+      <td>${fmtTime(new Date(h.enterTime))}</td>
+      <td>${fmtTime(new Date(h.leaveTime))}</td>
+      <td>${fmtTime(new Date(h.checkedOutAt))}</td>
+    `;
+    tbody.appendChild(tr);
   });
 }
 
