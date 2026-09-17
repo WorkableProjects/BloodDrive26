@@ -4,9 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Mat Occupancy Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg: #f0f2f6;
+    --bg: #eef0f5;
     --card: #ffffff;
     --border: #e5e7eb;
     --text: #1a1d29;
@@ -21,6 +24,7 @@
     --danger: #dc2626;
     --danger-light: #fde2e1;
     --shadow: 0 1px 2px rgba(16, 24, 40, 0.04), 0 4px 12px rgba(16, 24, 40, 0.06);
+    --shadow-lg: 0 4px 10px rgba(16, 24, 40, 0.05), 0 12px 28px rgba(16, 24, 40, 0.09);
   }
   * { box-sizing: border-box; }
   html, body {
@@ -29,33 +33,57 @@
   }
   body {
     margin: 0;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    background: var(--bg);
+    font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background:
+      radial-gradient(circle at 100% 0%, rgba(192, 39, 45, 0.05), transparent 45%),
+      var(--bg);
     color: var(--text);
     display: flex;
     flex-direction: column;
+    -webkit-font-smoothing: antialiased;
   }
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #d3d6dd; border-radius: 8px; }
+  ::-webkit-scrollbar-thumb:hover { background: #b7bbc6; }
+
   header {
-    background: linear-gradient(135deg, var(--accent), var(--accent-dark));
+    background: linear-gradient(120deg, var(--accent) 0%, var(--accent-dark) 100%);
     color: white;
-    padding: 14px 24px;
+    padding: 14px 26px;
     display: flex;
     align-items: center;
     justify-content: space-between;
     flex-wrap: wrap;
     gap: 10px;
-    box-shadow: var(--shadow);
+    box-shadow: 0 2px 16px rgba(150, 32, 26, 0.35);
+    flex-shrink: 0;
+    position: relative;
+    z-index: 5;
+  }
+  header .title { display: flex; align-items: center; gap: 12px; }
+  header .title .logo {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.16);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
     flex-shrink: 0;
   }
-  header .title h1 { margin: 0; font-size: 1.25rem; letter-spacing: -0.01em; }
-  header .title p { margin: 2px 0 0; opacity: 0.85; font-size: 0.8rem; }
+  header .title h1 { margin: 0; font-size: 1.3rem; font-weight: 800; letter-spacing: -0.02em; }
+  header .title p { margin: 1px 0 0; opacity: 0.85; font-size: 0.8rem; }
   #live-clock {
     font-variant-numeric: tabular-nums;
-    font-size: 1.3rem;
+    font-size: 1.35rem;
     font-weight: 700;
-    background: rgba(255, 255, 255, 0.12);
-    padding: 5px 14px;
+    background: rgba(0, 0, 0, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    padding: 6px 16px;
     border-radius: 10px;
+    letter-spacing: 0.02em;
   }
   main {
     flex: 1;
@@ -92,19 +120,24 @@
     background: var(--card);
     border-radius: 12px;
     box-shadow: var(--shadow);
-    padding: 10px 12px;
+    padding: 12px 14px;
+    border-left: 3px solid var(--border);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
   }
-  .stat-card .stat-value { font-size: 1.3rem; font-weight: 700; line-height: 1.2; }
-  .stat-card .stat-label { font-size: 0.7rem; color: var(--muted); margin-top: 2px; }
+  .stat-card:hover { transform: translateY(-1px); box-shadow: var(--shadow-lg); }
+  .stat-card .stat-value { font-size: 1.4rem; font-weight: 800; line-height: 1.2; letter-spacing: -0.02em; }
+  .stat-card .stat-label { font-size: 0.68rem; color: var(--muted); margin-top: 2px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; }
+  .stat-card.alert { border-left-color: var(--danger); }
   .stat-card.alert .stat-value { color: var(--danger); }
+  .stat-card.ok { border-left-color: var(--ok); }
   .stat-card.ok .stat-value { color: var(--ok); }
 
   .card {
     background: var(--card);
     border: 1px solid var(--border);
-    border-radius: 14px;
+    border-radius: 16px;
     box-shadow: var(--shadow);
-    padding: 16px;
+    padding: 18px;
     display: flex;
     flex-direction: column;
     min-height: 0;
@@ -113,10 +146,17 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 10px;
+    margin-bottom: 12px;
     flex-shrink: 0;
   }
-  .card-header h2 { margin: 0; font-size: 1rem; }
+  .card-header h2 {
+    margin: 0;
+    font-size: 0.95rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
 
   .table-scroll { overflow-y: auto; min-height: 0; }
 
@@ -127,14 +167,15 @@
   }
   .mat-slot {
     border-radius: 10px;
-    padding: 8px 4px;
+    padding: 9px 4px;
     text-align: center;
     font-size: 0.72rem;
     font-weight: 600;
     border: 1px solid transparent;
-    transition: transform 0.15s ease;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
   }
-  .mat-slot .mat-num { font-size: 0.9rem; }
+  .mat-slot:not(.blank):hover { transform: translateY(-2px); box-shadow: var(--shadow); }
+  .mat-slot .mat-num { font-size: 0.92rem; font-weight: 800; }
   .mat-slot.free { background: var(--ok-light); color: var(--ok); border-color: #cdeedb; }
   .mat-slot.busy { background: var(--danger-light); color: var(--danger); border-color: #f6cac8; }
   .mat-slot.warn-slot { background: var(--warn-light); color: var(--warn); border-color: #ffe4b3; }
@@ -169,6 +210,7 @@
   }
   button {
     background: var(--accent);
+    background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0));
     color: white;
     border: none;
     padding: 9px 16px;
@@ -176,33 +218,38 @@
     font-size: 0.9rem;
     font-weight: 600;
     cursor: pointer;
-    transition: background 0.15s ease, transform 0.1s ease;
+    box-shadow: 0 1px 2px rgba(150, 32, 26, 0.15);
+    transition: background 0.15s ease, transform 0.1s ease, box-shadow 0.15s ease;
   }
-  button:hover { background: var(--accent-dark); }
+  button:hover { background: var(--accent-dark); box-shadow: 0 4px 10px rgba(150, 32, 26, 0.25); }
   button:active { transform: scale(0.97); }
   button.secondary {
     background: white;
+    background-image: none;
     color: var(--text);
     border: 1px solid var(--border);
     font-weight: 500;
+    box-shadow: none;
   }
-  button.secondary:hover { background: #f5f5f5; }
-  #checkin-form button[type="submit"] { width: 100%; }
+  button.secondary:hover { background: #f5f5f5; box-shadow: none; }
+  #checkin-form button[type="submit"] { width: 100%; padding: 11px 16px; font-size: 0.95rem; }
 
   table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
-  th, td { text-align: left; padding: 8px 8px; border-bottom: 1px solid var(--border); }
+  th, td { text-align: left; padding: 9px 8px; border-bottom: 1px solid var(--border); }
   th {
     color: var(--muted);
-    font-weight: 600;
-    font-size: 0.7rem;
+    font-weight: 700;
+    font-size: 0.68rem;
     text-transform: uppercase;
-    letter-spacing: 0.03em;
+    letter-spacing: 0.04em;
     position: sticky;
     top: 0;
     background: var(--card);
+    z-index: 1;
   }
-  tbody tr { transition: background-color 0.15s ease, opacity 0.3s ease, transform 0.3s ease; }
-  tbody tr:hover td { background: #fafbfc; }
+  tbody tr { transition: background-color 0.15s ease, opacity 0.3s ease, transform 0.3s ease; background: transparent; }
+  tbody tr:nth-child(even) { background: #fafbfd; }
+  tbody tr:hover td { background: #f3f5f9; }
   tr.expired td { background: var(--danger-light); animation: pulse-row 1.3s ease-in-out infinite; }
   tr.soon td { background: var(--warn-light); }
   tr.new-row { animation: fadein-row 0.4s ease-out; }
@@ -309,8 +356,11 @@
 <body>
 <header>
   <div class="title">
-    <h1>Mat Occupancy Tracker</h1>
-    <p>Track who's on which mat, and get reminded when their time is up.</p>
+    <div class="logo">🧘</div>
+    <div>
+      <h1>Mat Occupancy Tracker</h1>
+      <p>Track who's on which mat, and get reminded when their time is up.</p>
+    </div>
   </div>
   <div id="live-clock">--:--:--</div>
 </header>
@@ -410,7 +460,6 @@
 
 <script>
 const STORAGE_KEY = "matTrackerEntries";
-const HISTORY_KEY = "matTrackerHistory";
 const SOUND_KEY = "matTrackerSoundOn";
 const NUM_MATS = 10;
 const NOTIFIED_KEY = "matTrackerNotified";
@@ -418,7 +467,8 @@ const ALARM_REPEAT_MS = 4000;
 const ROW_EXIT_MS = 380;
 
 let entries = loadEntries();
-let history = loadHistory();
+let history = [];
+let historyLoaded = false;
 let notified = new Set(JSON.parse(localStorage.getItem(NOTIFIED_KEY) || "[]"));
 let soundOn = localStorage.getItem(SOUND_KEY) !== "off";
 let newRowIds = new Set();
@@ -433,20 +483,31 @@ function loadEntries() {
   }
 }
 
-function loadHistory() {
+async function loadHistory() {
   try {
-    return JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]");
-  } catch {
-    return [];
+    const res = await fetch("/api/history");
+    if (!res.ok) throw new Error("bad response");
+    history = await res.json();
+  } catch (err) {
+    console.warn("Could not load history.json from the server; is server.js running?", err);
+    history = [];
   }
+  historyLoaded = true;
+  render();
+}
+
+function saveHistory() {
+  fetch("/api/history", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(history),
+  }).catch((err) => {
+    console.warn("Could not save history.json; is server.js running?", err);
+  });
 }
 
 function saveEntries() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
-}
-
-function saveHistory() {
-  localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
 }
 
 function saveNotified() {
@@ -779,6 +840,9 @@ function renderHistory() {
   tbody.innerHTML = "";
 
   if (history.length === 0) {
+    emptyMsg.textContent = historyLoaded
+      ? "No history yet."
+      : "Loading history from history.json (run `npm start` if this doesn't load)…";
     emptyMsg.style.display = "block";
     newHistoryIds.clear();
     return;
@@ -802,6 +866,7 @@ function renderHistory() {
 
 setInterval(render, 5000);
 render();
+loadHistory();
 </script>
 </body>
 </html>

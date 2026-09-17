@@ -1,0 +1,9 @@
+{
+  "name": "mat-occupancy-tracker",
+  "version": "1.0.0",
+  "description": "Mat occupancy tracker with a file-backed history log",
+  "private": true,
+  "scripts": {
+    "start": "node server.js"
+  }
+}
