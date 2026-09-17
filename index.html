@@ -555,6 +555,17 @@ function animateRowExit(id, onComplete) {
   }
 }
 
+function addCustomMinutes(id) {
+  const input = prompt("Add how many minutes?", "10");
+  if (input === null) return;
+  const minutes = Number(input);
+  if (!Number.isFinite(minutes) || minutes <= 0) {
+    alert("Please enter a positive number of minutes.");
+    return;
+  }
+  addMinutes(id, minutes);
+}
+
 function addMinutes(id, minutes) {
   const entry = entries.find((en) => en.id === id);
   if (!entry) return;
@@ -602,6 +613,7 @@ function showToast(entry) {
       <div class="toast-actions">
         <button onclick="addMinutes('${entry.id}', 5)">+5 min</button>
         <button onclick="addMinutes('${entry.id}', 15)">+15 min</button>
+        <button onclick="addCustomMinutes('${entry.id}')">Custom</button>
         <button onclick="checkOut('${entry.id}')">Check Out</button>
       </div>
     `;
@@ -672,6 +684,7 @@ function render() {
       <td>
         <div class="row-actions">
           <button class="secondary" onclick="addMinutes('${entry.id}', 15)">+15 min</button>
+          <button class="secondary" onclick="addCustomMinutes('${entry.id}')">Custom</button>
           <button class="secondary" onclick="checkOut('${entry.id}')">Check Out</button>
         </div>
       </td>
