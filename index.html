@@ -486,37 +486,19 @@ document.getElementById("checkin-form").addEventListener("submit", (e) => {
 
   if (!name) return;
 
-  function addNewEntry() {
-    const enterTime = new Date();
-    const leaveTime = new Date(enterTime.getTime() + duration * 60000);
-    const id = uid();
-    entries.push({
-      id,
-      name,
-      mat,
-      enterTime: enterTime.toISOString(),
-      leaveTime: leaveTime.toISOString(),
-    });
-    newRowIds.add(id);
-    saveEntries();
-    render();
-  }
-
-  const occupied = entries.find((en) => en.mat === mat);
-  if (occupied) {
-    if (!confirm(`Mat ${mat} is currently occupied by ${occupied.name}. Replace them?`)) {
-      return;
-    }
-    dismissToast(occupied.id);
-    clearAlarmTimer(occupied.id);
-    animateRowExit(occupied.id, () => {
-      logToHistory(occupied, "Replaced");
-      entries = entries.filter((en) => en.id !== occupied.id);
-      addNewEntry();
-    });
-  } else {
-    addNewEntry();
-  }
+  const enterTime = new Date();
+  const leaveTime = new Date(enterTime.getTime() + duration * 60000);
+  const id = uid();
+  entries.push({
+    id,
+    name,
+    mat,
+    enterTime: enterTime.toISOString(),
+    leaveTime: leaveTime.toISOString(),
+  });
+  newRowIds.add(id);
+  saveEntries();
+  render();
 
   document.getElementById("name").value = "";
 });
@@ -644,8 +626,16 @@ function render() {
   const nowMs = Date.now();
   let alertCount = 0;
   const matStatus = {};
+  const matCounts = {};
+  const statusRank = { free: 0, "warn-slot": 1, busy: 2 };
+
+  function raiseMatStatus(mat, status) {
+    const current = matStatus[mat] || "free";
+    if (statusRank[status] > statusRank[current]) matStatus[mat] = status;
+  }
 
   sorted.forEach((entry) => {
+    matCounts[entry.mat] = (matCounts[entry.mat] || 0) + 1;
     const leaveMs = new Date(entry.leaveTime).getTime();
     const diffMin = (leaveMs - nowMs) / 60000;
 
@@ -658,14 +648,14 @@ function render() {
       statusLabel = "Time's Up";
       rowClass = "expired";
       alertCount++;
-      matStatus[entry.mat] = "busy";
+      raiseMatStatus(entry.mat, "busy");
     } else if (diffMin <= 2) {
       statusClass = "soon";
       statusLabel = "Ending Soon";
       rowClass = "soon";
-      matStatus[entry.mat] = "warn-slot";
+      raiseMatStatus(entry.mat, "warn-slot");
     } else {
-      matStatus[entry.mat] = "busy";
+      raiseMatStatus(entry.mat, "busy");
     }
 
     const classes = [rowClass];
@@ -698,14 +688,14 @@ function render() {
 
   newRowIds.clear();
   flashRowIds.clear();
-  renderMatGrid(matStatus);
-  renderStats(sorted.length, alertCount);
+  renderMatGrid(matStatus, matCounts);
+  renderStats(Object.keys(matCounts).length, alertCount);
   renderHistory();
 }
 
 const MAT_GRID_ORDER = [null, null, 10, 1, 2, 3, 4, 5, 6, 7, 8, 9];
 
-function renderMatGrid(matStatus) {
+function renderMatGrid(matStatus, matCounts) {
   const grid = document.getElementById("mat-grid");
   grid.innerHTML = "";
   MAT_GRID_ORDER.forEach((matNum) => {
@@ -716,7 +706,11 @@ function renderMatGrid(matStatus) {
       return;
     }
     const status = matStatus[matNum] || "free";
-    const label = status === "free" ? "Free" : status === "warn-slot" ? "Ending Soon" : "Occupied";
+    const count = matCounts[matNum] || 0;
+    const label =
+      status === "free"
+        ? "Free"
+        : `${count} ${count === 1 ? "person" : "people"}${status === "warn-slot" ? " · Ending Soon" : ""}`;
     const slot = document.createElement("div");
     slot.className = "mat-slot " + status;
     slot.innerHTML = `<div class="mat-num">Mat ${matNum}</div><div>${label}</div>`;
@@ -724,9 +718,9 @@ function renderMatGrid(matStatus) {
   });
 }
 
-function renderStats(occupiedCount, alertCount) {
-  document.getElementById("stat-occupied").textContent = `${occupiedCount}/${NUM_MATS}`;
-  document.getElementById("stat-free").textContent = NUM_MATS - occupiedCount;
+function renderStats(occupiedMatCount, alertCount) {
+  document.getElementById("stat-occupied").textContent = `${occupiedMatCount}/${NUM_MATS}`;
+  document.getElementById("stat-free").textContent = NUM_MATS - occupiedMatCount;
   document.getElementById("stat-alerts").textContent = alertCount;
   soundToggleBtn.classList.toggle("alerting", alertCount > 0);
 }
