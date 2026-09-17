@@ -90,9 +90,10 @@
 
   .mat-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
+    grid-template-columns: repeat(3, 1fr);
     gap: 10px;
     margin-bottom: 4px;
+    max-width: 320px;
   }
   .mat-slot {
     border-radius: 10px;
@@ -107,6 +108,7 @@
   .mat-slot.free { background: var(--ok-light); color: var(--ok); border-color: #cdeedb; }
   .mat-slot.busy { background: var(--danger-light); color: var(--danger); border-color: #f6cac8; }
   .mat-slot.warn-slot { background: var(--warn-light); color: var(--warn); border-color: #ffe4b3; }
+  .mat-slot.blank { visibility: hidden; }
 
   form {
     display: flex;
@@ -688,17 +690,25 @@ function render() {
   renderHistory();
 }
 
+const MAT_GRID_ORDER = [null, null, 10, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+
 function renderMatGrid(matStatus) {
   const grid = document.getElementById("mat-grid");
   grid.innerHTML = "";
-  for (let i = 1; i <= NUM_MATS; i++) {
-    const status = matStatus[i] || "free";
+  MAT_GRID_ORDER.forEach((matNum) => {
+    if (matNum === null) {
+      const blank = document.createElement("div");
+      blank.className = "mat-slot blank";
+      grid.appendChild(blank);
+      return;
+    }
+    const status = matStatus[matNum] || "free";
     const label = status === "free" ? "Free" : status === "warn-slot" ? "Ending Soon" : "Occupied";
     const slot = document.createElement("div");
     slot.className = "mat-slot " + status;
-    slot.innerHTML = `<div class="mat-num">Mat ${i}</div><div>${label}</div>`;
+    slot.innerHTML = `<div class="mat-num">Mat ${matNum}</div><div>${label}</div>`;
     grid.appendChild(slot);
-  }
+  });
 }
 
 function renderStats(occupiedCount, alertCount) {
