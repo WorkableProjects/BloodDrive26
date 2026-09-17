@@ -6,16 +6,21 @@
 <title>Mat Occupancy Tracker</title>
 <style>
   :root {
-    --bg: #f4f5f7;
+    --bg: #f0f2f6;
     --card: #ffffff;
-    --border: #e0e2e7;
-    --text: #1f2430;
+    --border: #e5e7eb;
+    --text: #1a1d29;
     --muted: #6b7280;
-    --accent: #b8272c;
-    --accent-dark: #8e1f23;
-    --ok: #1f9d55;
-    --warn: #f59e0b;
+    --accent: #c0272d;
+    --accent-dark: #96201a;
+    --accent-light: #fdeceb;
+    --ok: #16a34a;
+    --ok-light: #e7f7ed;
+    --warn: #d97706;
+    --warn-light: #fff4de;
     --danger: #dc2626;
+    --danger-light: #fde2e1;
+    --shadow: 0 1px 2px rgba(16, 24, 40, 0.04), 0 4px 12px rgba(16, 24, 40, 0.06);
   }
   * { box-sizing: border-box; }
   body {
@@ -25,90 +30,183 @@
     color: var(--text);
   }
   header {
-    background: var(--accent);
+    background: linear-gradient(135deg, var(--accent), var(--accent-dark));
     color: white;
-    padding: 20px 24px;
+    padding: 22px 28px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 10px;
+    box-shadow: var(--shadow);
   }
-  header h1 { margin: 0; font-size: 1.4rem; }
-  header p { margin: 4px 0 0; opacity: 0.9; font-size: 0.9rem; }
+  header .title h1 { margin: 0; font-size: 1.5rem; letter-spacing: -0.01em; }
+  header .title p { margin: 4px 0 0; opacity: 0.85; font-size: 0.9rem; }
+  #live-clock {
+    font-variant-numeric: tabular-nums;
+    font-size: 1.6rem;
+    font-weight: 700;
+    background: rgba(255, 255, 255, 0.12);
+    padding: 6px 16px;
+    border-radius: 10px;
+  }
   main {
-    max-width: 1100px;
+    max-width: 1150px;
     margin: 0 auto;
-    padding: 24px;
+    padding: 24px 20px 60px;
   }
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 14px;
+    margin-bottom: 20px;
+  }
+  .stat-card {
+    background: var(--card);
+    border-radius: 12px;
+    box-shadow: var(--shadow);
+    padding: 16px 18px;
+  }
+  .stat-card .stat-value { font-size: 1.6rem; font-weight: 700; line-height: 1.2; }
+  .stat-card .stat-label { font-size: 0.8rem; color: var(--muted); margin-top: 2px; }
+  .stat-card.alert .stat-value { color: var(--danger); }
+  .stat-card.ok .stat-value { color: var(--ok); }
+
   .card {
     background: var(--card);
     border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 20px;
-    margin-bottom: 24px;
+    border-radius: 14px;
+    box-shadow: var(--shadow);
+    padding: 22px;
+    margin-bottom: 22px;
   }
-  .card h2 { margin-top: 0; font-size: 1.1rem; }
+  .card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+  }
+  .card-header h2 { margin: 0; font-size: 1.1rem; }
+
+  .mat-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
+    gap: 10px;
+    margin-bottom: 4px;
+  }
+  .mat-slot {
+    border-radius: 10px;
+    padding: 10px 6px;
+    text-align: center;
+    font-size: 0.8rem;
+    font-weight: 600;
+    border: 1px solid transparent;
+    transition: transform 0.15s ease;
+  }
+  .mat-slot .mat-num { font-size: 1rem; }
+  .mat-slot.free { background: var(--ok-light); color: var(--ok); border-color: #cdeedb; }
+  .mat-slot.busy { background: var(--danger-light); color: var(--danger); border-color: #f6cac8; }
+  .mat-slot.warn-slot { background: var(--warn-light); color: var(--warn); border-color: #ffe4b3; }
+
   form {
     display: flex;
     flex-wrap: wrap;
-    gap: 12px;
+    gap: 14px;
     align-items: flex-end;
   }
-  .field { display: flex; flex-direction: column; gap: 4px; }
-  .field label { font-size: 0.8rem; color: var(--muted); }
+  .field { display: flex; flex-direction: column; gap: 5px; }
+  .field label { font-size: 0.78rem; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.02em; }
   .field input, .field select {
-    padding: 8px 10px;
+    padding: 9px 11px;
     border: 1px solid var(--border);
-    border-radius: 6px;
+    border-radius: 8px;
     font-size: 0.95rem;
+    background: #fafafa;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+  .field input:focus, .field select:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-light);
+    background: white;
+  }
+  .field input[readonly] {
+    color: var(--muted);
+    background: #f3f4f6;
+    font-variant-numeric: tabular-nums;
   }
   button {
     background: var(--accent);
     color: white;
     border: none;
-    padding: 9px 16px;
-    border-radius: 6px;
+    padding: 10px 18px;
+    border-radius: 8px;
     font-size: 0.95rem;
+    font-weight: 600;
     cursor: pointer;
+    transition: background 0.15s ease, transform 0.1s ease;
   }
   button:hover { background: var(--accent-dark); }
+  button:active { transform: scale(0.97); }
   button.secondary {
     background: white;
     color: var(--text);
     border: 1px solid var(--border);
+    font-weight: 500;
   }
-  button.secondary:hover { background: #f0f0f0; }
-  table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 0.9rem;
-  }
-  th, td {
-    text-align: left;
-    padding: 10px 8px;
-    border-bottom: 1px solid var(--border);
-  }
-  th { color: var(--muted); font-weight: 600; font-size: 0.8rem; text-transform: uppercase; }
-  tr.expired td { background: #fdecea; animation: pulse-row 1.4s ease-in-out infinite; }
-  tr.soon td { background: #fff8e1; }
+  button.secondary:hover { background: #f5f5f5; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+  th, td { text-align: left; padding: 11px 10px; border-bottom: 1px solid var(--border); }
+  th { color: var(--muted); font-weight: 600; font-size: 0.76rem; text-transform: uppercase; letter-spacing: 0.03em; }
+  tbody tr { transition: background-color 0.15s ease, opacity 0.3s ease, transform 0.3s ease; }
+  tbody tr:hover td { background: #fafbfc; }
+  tr.expired td { background: var(--danger-light); animation: pulse-row 1.3s ease-in-out infinite; }
+  tr.soon td { background: var(--warn-light); }
   tr.new-row { animation: fadein-row 0.4s ease-out; }
+  tr.row-exit { opacity: 0; transform: translateX(24px) scale(0.98); pointer-events: none; }
+  tr.row-flash td { animation: flash-green 0.7s ease; }
+  tr.history-new { animation: fadein-history 0.5s ease-out; }
+
   @keyframes pulse-row {
-    0%, 100% { background-color: #fdecea; }
-    50% { background-color: #f8c4c1; }
+    0%, 100% { background-color: var(--danger-light); }
+    50% { background-color: #f6bcb9; }
   }
   @keyframes fadein-row {
-    from { opacity: 0; transform: translateY(-6px); }
+    from { opacity: 0; transform: translateY(-8px); }
     to { opacity: 1; transform: translateY(0); }
   }
+  @keyframes fadein-history {
+    from { opacity: 0; transform: translateY(-10px) scale(0.98); background-color: var(--ok-light); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  @keyframes flash-green {
+    0% { background-color: var(--ok-light); }
+    100% { background-color: transparent; }
+  }
+
   .badge {
-    display: inline-block;
-    padding: 2px 8px;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 10px;
     border-radius: 999px;
     font-size: 0.75rem;
-    font-weight: 600;
+    font-weight: 700;
   }
-  .badge.active { background: #e6f7ec; color: var(--ok); }
-  .badge.soon { background: #fff3d6; color: #92660a; }
-  .badge.expired { background: #fde2e1; color: var(--danger); }
+  .badge::before {
+    content: "";
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+  }
+  .badge.active { background: var(--ok-light); color: var(--ok); }
+  .badge.soon { background: var(--warn-light); color: var(--warn); }
+  .badge.expired { background: var(--danger-light); color: var(--danger); }
   .row-actions { display: flex; gap: 6px; }
-  .row-actions button { padding: 5px 10px; font-size: 0.8rem; }
-  .empty { color: var(--muted); font-style: italic; padding: 12px 0; }
+  .row-actions button { padding: 6px 11px; font-size: 0.8rem; }
+  .empty, .history-empty { color: var(--muted); font-style: italic; padding: 14px 0; text-align: center; }
 
   #toast-container {
     position: fixed;
@@ -121,56 +219,82 @@
     max-width: 320px;
   }
   .toast {
-    background: var(--danger);
+    background: linear-gradient(135deg, var(--danger), #a91e1e);
     color: white;
     padding: 14px 16px;
-    border-radius: 8px;
-    box-shadow: 0 6px 20px rgba(0,0,0,0.25);
+    border-radius: 10px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
     animation: slidein 0.25s ease-out;
   }
   .toast .toast-title { font-weight: 700; margin-bottom: 4px; }
   .toast .toast-actions { margin-top: 10px; display: flex; gap: 8px; }
   .toast button {
-    background: rgba(255,255,255,0.15);
-    border: 1px solid rgba(255,255,255,0.4);
+    background: rgba(255, 255, 255, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.4);
     padding: 6px 10px;
     font-size: 0.8rem;
   }
-  .toast button:hover { background: rgba(255,255,255,0.3); }
+  .toast button:hover { background: rgba(255, 255, 255, 0.3); }
   @keyframes slidein {
-    from { transform: translateX(100%); opacity: 0; }
+    from { transform: translateX(110%); opacity: 0; }
     to { transform: translateX(0); opacity: 1; }
   }
-  .toast.shake { animation: slidein 0.25s ease-out, shake 0.5s ease-in-out 0.25s; }
+  .toast.shake { animation: slidein 0.25s ease-out, shake 0.5s ease-in-out 0.25s, toast-pulse 1.2s ease-in-out 0.8s infinite; }
   @keyframes shake {
     0%, 100% { transform: translateX(0); }
     20%, 60% { transform: translateX(-4px); }
     40%, 80% { transform: translateX(4px); }
   }
-  button.icon-btn {
-    background: transparent;
-    color: white;
-    border: 1px solid rgba(255,255,255,0.5);
-    padding: 4px 8px;
-    font-size: 0.75rem;
+  @keyframes toast-pulse {
+    0%, 100% { box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3); }
+    50% { box-shadow: 0 10px 30px rgba(220, 38, 38, 0.65); }
   }
+
   #sound-toggle {
     position: fixed;
     bottom: 20px;
     left: 20px;
     z-index: 1000;
+    box-shadow: var(--shadow);
   }
-  .history-empty { color: var(--muted); font-style: italic; padding: 12px 0; }
+  #sound-toggle.alerting { animation: toggle-pulse 1s ease-in-out infinite; }
+  @keyframes toggle-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.5); }
+    50% { box-shadow: 0 0 0 8px rgba(220, 38, 38, 0); }
+  }
 </style>
 </head>
 <body>
 <header>
-  <h1>Mat Occupancy Tracker</h1>
-  <p>Track who's on which mat, and get reminded when their time is up.</p>
+  <div class="title">
+    <h1>Mat Occupancy Tracker</h1>
+    <p>Track who's on which mat, and get reminded when their time is up.</p>
+  </div>
+  <div id="live-clock">--:--:--</div>
 </header>
 <main>
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="stat-value" id="stat-occupied">0/10</div>
+      <div class="stat-label">Mats Occupied</div>
+    </div>
+    <div class="stat-card ok">
+      <div class="stat-value" id="stat-free">10</div>
+      <div class="stat-label">Mats Available</div>
+    </div>
+    <div class="stat-card alert">
+      <div class="stat-value" id="stat-alerts">0</div>
+      <div class="stat-label">Time's Up Alerts</div>
+    </div>
+  </div>
+
   <div class="card">
-    <h2>Check In</h2>
+    <div class="card-header"><h2>Mat Overview</h2></div>
+    <div class="mat-grid" id="mat-grid"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><h2>Check In</h2></div>
     <form id="checkin-form">
       <div class="field">
         <label for="name">Name</label>
@@ -181,19 +305,19 @@
         <select id="mat" required></select>
       </div>
       <div class="field">
-        <label for="enter-time">Enter Time</label>
-        <input type="time" id="enter-time" required>
+        <label for="enter-time-display">Enter Time</label>
+        <input type="text" id="enter-time-display" readonly title="Always the current system time">
       </div>
       <div class="field">
         <label for="duration">Duration (min)</label>
-        <input type="number" id="duration" value="15" min="1" style="width: 80px;">
+        <input type="number" id="duration" value="15" min="1" style="width: 90px;">
       </div>
       <button type="submit">Check In</button>
     </form>
   </div>
 
   <div class="card">
-    <h2>Occupied Mats</h2>
+    <div class="card-header"><h2>Occupied Mats</h2></div>
     <table>
       <thead>
         <tr>
@@ -211,10 +335,10 @@
   </div>
 
   <div class="card">
-    <h2 style="display:flex; align-items:center; justify-content:space-between;">
-      History
-      <button class="secondary" id="clear-history-btn" style="font-size:0.8rem;">Clear History</button>
-    </h2>
+    <div class="card-header">
+      <h2>History</h2>
+      <button class="secondary" id="clear-history-btn">Clear History</button>
+    </div>
     <table>
       <thead>
         <tr>
@@ -240,13 +364,15 @@ const HISTORY_KEY = "matTrackerHistory";
 const SOUND_KEY = "matTrackerSoundOn";
 const NUM_MATS = 10;
 const NOTIFIED_KEY = "matTrackerNotified";
-const ALARM_REPEAT_MS = 15000;
+const ALARM_REPEAT_MS = 4000;
+const ROW_EXIT_MS = 380;
 
 let entries = loadEntries();
 let history = loadHistory();
 let notified = new Set(JSON.parse(localStorage.getItem(NOTIFIED_KEY) || "[]"));
 let soundOn = localStorage.getItem(SOUND_KEY) !== "off";
 let newRowIds = new Set();
+let newHistoryIds = new Set();
 const alarmTimers = {};
 
 function loadEntries() {
@@ -283,7 +409,7 @@ function playAlarm() {
   try {
     if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     const now = audioCtx.currentTime;
-    [0, 0.18].forEach((offset) => {
+    [0, 0.18, 0.36].forEach((offset) => {
       const osc = audioCtx.createOscillator();
       const gain = audioCtx.createGain();
       osc.type = "sine";
@@ -328,11 +454,8 @@ function fmtTime(date) {
   return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
 
-function parseTimeToday(hhmm) {
-  const [h, m] = hhmm.split(":").map(Number);
-  const d = new Date();
-  d.setHours(h, m, 0, 0);
-  return d;
+function fmtClock(date) {
+  return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
 }
 
 const matSelect = document.getElementById("mat");
@@ -343,50 +466,63 @@ for (let i = 1; i <= NUM_MATS; i++) {
   matSelect.appendChild(opt);
 }
 
-const now = new Date();
-document.getElementById("enter-time").value =
-  String(now.getHours()).padStart(2, "0") + ":" + String(now.getMinutes()).padStart(2, "0");
+const liveClockEl = document.getElementById("live-clock");
+const enterTimeDisplay = document.getElementById("enter-time-display");
+function tickClock() {
+  const now = new Date();
+  liveClockEl.textContent = fmtClock(now);
+  enterTimeDisplay.value = fmtTime(now) + " (now)";
+}
+setInterval(tickClock, 1000);
+tickClock();
 
 document.getElementById("checkin-form").addEventListener("submit", (e) => {
   e.preventDefault();
   const name = document.getElementById("name").value.trim();
   const mat = Number(document.getElementById("mat").value);
-  const enterTimeStr = document.getElementById("enter-time").value;
   const duration = Number(document.getElementById("duration").value) || 15;
 
   if (!name) return;
+
+  function addNewEntry() {
+    const enterTime = new Date();
+    const leaveTime = new Date(enterTime.getTime() + duration * 60000);
+    const id = uid();
+    entries.push({
+      id,
+      name,
+      mat,
+      enterTime: enterTime.toISOString(),
+      leaveTime: leaveTime.toISOString(),
+    });
+    newRowIds.add(id);
+    saveEntries();
+    render();
+  }
 
   const occupied = entries.find((en) => en.mat === mat);
   if (occupied) {
     if (!confirm(`Mat ${mat} is currently occupied by ${occupied.name}. Replace them?`)) {
       return;
     }
-    logToHistory(occupied, "Replaced");
-    entries = entries.filter((en) => en.id !== occupied.id);
+    dismissToast(occupied.id);
     clearAlarmTimer(occupied.id);
+    animateRowExit(occupied.id, () => {
+      logToHistory(occupied, "Replaced");
+      entries = entries.filter((en) => en.id !== occupied.id);
+      addNewEntry();
+    });
+  } else {
+    addNewEntry();
   }
 
-  const enterTime = parseTimeToday(enterTimeStr);
-  const leaveTime = new Date(enterTime.getTime() + duration * 60000);
-  const id = uid();
-
-  entries.push({
-    id,
-    name,
-    mat,
-    enterTime: enterTime.toISOString(),
-    leaveTime: leaveTime.toISOString(),
-  });
-
-  newRowIds.add(id);
-  saveEntries();
   document.getElementById("name").value = "";
-  render();
 });
 
 function logToHistory(entry, reason) {
+  const historyId = uid();
   history.unshift({
-    id: uid(),
+    id: historyId,
     name: entry.name,
     mat: entry.mat,
     enterTime: entry.enterTime,
@@ -394,6 +530,7 @@ function logToHistory(entry, reason) {
     checkedOutAt: new Date().toISOString(),
     reason,
   });
+  newHistoryIds.add(historyId);
   if (history.length > 200) history.length = 200;
   saveHistory();
 }
@@ -402,6 +539,17 @@ function clearAlarmTimer(id) {
   if (alarmTimers[id]) {
     clearInterval(alarmTimers[id]);
     delete alarmTimers[id];
+  }
+}
+
+function animateRowExit(id, onComplete) {
+  const row = document.querySelector(`tr[data-id="${id}"]`);
+  if (row) {
+    row.classList.add("row-exit");
+    row.querySelectorAll("button").forEach((b) => (b.disabled = true));
+    setTimeout(onComplete, ROW_EXIT_MS);
+  } else {
+    onComplete();
   }
 }
 
@@ -414,20 +562,25 @@ function addMinutes(id, minutes) {
   clearAlarmTimer(id);
   saveNotified();
   saveEntries();
-  render();
   dismissToast(id);
+  flashRowIds.add(id);
+  render();
 }
 
+const flashRowIds = new Set();
+
 function checkOut(id) {
-  const entry = entries.find((en) => en.id === id);
-  if (entry) logToHistory(entry, "Checked Out");
-  entries = entries.filter((en) => en.id !== id);
   notified.delete(id);
   clearAlarmTimer(id);
   saveNotified();
-  saveEntries();
-  render();
   dismissToast(id);
+  animateRowExit(id, () => {
+    const entry = entries.find((en) => en.id === id);
+    if (entry) logToHistory(entry, "Checked Out");
+    entries = entries.filter((en) => en.id !== id);
+    saveEntries();
+    render();
+  });
 }
 
 function dismissToast(id) {
@@ -472,13 +625,11 @@ function render() {
 
   const sorted = [...entries].sort((a, b) => a.mat - b.mat);
 
-  if (sorted.length === 0) {
-    emptyMsg.style.display = "block";
-  } else {
-    emptyMsg.style.display = "none";
-  }
+  emptyMsg.style.display = sorted.length === 0 ? "block" : "none";
 
   const nowMs = Date.now();
+  let alertCount = 0;
+  const matStatus = {};
 
   sorted.forEach((entry) => {
     const leaveMs = new Date(entry.leaveTime).getTime();
@@ -492,14 +643,24 @@ function render() {
       statusClass = "expired";
       statusLabel = "Time's Up";
       rowClass = "expired";
+      alertCount++;
+      matStatus[entry.mat] = "busy";
     } else if (diffMin <= 2) {
       statusClass = "soon";
       statusLabel = "Ending Soon";
       rowClass = "soon";
+      matStatus[entry.mat] = "warn-slot";
+    } else {
+      matStatus[entry.mat] = "busy";
     }
 
+    const classes = [rowClass];
+    if (newRowIds.has(entry.id)) classes.push("new-row");
+    if (flashRowIds.has(entry.id)) classes.push("row-flash");
+
     const tr = document.createElement("tr");
-    tr.className = [rowClass, newRowIds.has(entry.id) ? "new-row" : ""].filter(Boolean).join(" ");
+    tr.dataset.id = entry.id;
+    tr.className = classes.filter(Boolean).join(" ");
     tr.innerHTML = `
       <td>${entry.mat}</td>
       <td>${escapeHtml(entry.name)}</td>
@@ -521,7 +682,30 @@ function render() {
   });
 
   newRowIds.clear();
+  flashRowIds.clear();
+  renderMatGrid(matStatus);
+  renderStats(sorted.length, alertCount);
   renderHistory();
+}
+
+function renderMatGrid(matStatus) {
+  const grid = document.getElementById("mat-grid");
+  grid.innerHTML = "";
+  for (let i = 1; i <= NUM_MATS; i++) {
+    const status = matStatus[i] || "free";
+    const label = status === "free" ? "Free" : status === "warn-slot" ? "Ending Soon" : "Occupied";
+    const slot = document.createElement("div");
+    slot.className = "mat-slot " + status;
+    slot.innerHTML = `<div class="mat-num">Mat ${i}</div><div>${label}</div>`;
+    grid.appendChild(slot);
+  }
+}
+
+function renderStats(occupiedCount, alertCount) {
+  document.getElementById("stat-occupied").textContent = `${occupiedCount}/${NUM_MATS}`;
+  document.getElementById("stat-free").textContent = NUM_MATS - occupiedCount;
+  document.getElementById("stat-alerts").textContent = alertCount;
+  soundToggleBtn.classList.toggle("alerting", alertCount > 0);
 }
 
 function renderHistory() {
@@ -531,12 +715,14 @@ function renderHistory() {
 
   if (history.length === 0) {
     emptyMsg.style.display = "block";
+    newHistoryIds.clear();
     return;
   }
   emptyMsg.style.display = "none";
 
   history.forEach((h) => {
     const tr = document.createElement("tr");
+    if (newHistoryIds.has(h.id)) tr.className = "history-new";
     tr.innerHTML = `
       <td>${h.mat}</td>
       <td>${escapeHtml(h.name)}</td>
@@ -546,6 +732,7 @@ function renderHistory() {
     `;
     tbody.appendChild(tr);
   });
+  newHistoryIds.clear();
 }
 
 setInterval(render, 5000);
